@@ -92,6 +92,36 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Plays an audio file from a URL.
+   */
+  public async playSoundFile(url: string) {
+    if (!this.context) this.init();
+    if (!this.context || this.context.state === 'suspended') {
+        await this.resume();
+    }
+    
+    try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await this.context!.decodeAudioData(arrayBuffer);
+        
+        const source = this.context!.createBufferSource();
+        source.buffer = audioBuffer;
+        
+        // Use a separate gain for effects if needed, or connect to master
+        const gain = this.context!.createGain();
+        gain.gain.value = 0.8; 
+        
+        source.connect(gain);
+        gain.connect(this.masterGain || this.context!.destination);
+        
+        source.start(0);
+    } catch (e) {
+        console.error('Failed to play sound file:', url, e);
+    }
+  }
+
   public playTone(frequency: number, type: OscillatorType = 'sine', duration: number = 0.5) {
     if (!this.context || !this.masterGain) this.init();
     // Safety check if init failed or still null

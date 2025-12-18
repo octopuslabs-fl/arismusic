@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LockdownManager } from './components/LockdownManager';
 import { FreePlay } from './components/FreePlay';
 import { ListenAndFind } from './components/ListenAndFind';
+import { ResourceDisplay } from './components/ResourceDisplay';
 import { GameShell } from './components/GameShell';
 import { MainMenu } from './components/MainMenu';
 import { audio } from './audio/AudioEngine';
@@ -78,15 +79,39 @@ function App() {
             />
           )}
 
-          {currentScreen === 'quiz' && (
-            <GameShell 
-              screen={ListenAndFind} 
-              onExit={() => setCurrentScreen('menu')} 
-            />
-          )}
-        </>
-      )}
-    </div>
+                      {currentScreen === 'quiz' && (
+
+                        <GameShell 
+
+                          screen={ListenAndFind} 
+
+                          onExit={() => setCurrentScreen('menu')} 
+
+                        />
+
+                      )}
+
+          
+
+                      {currentScreen === 'resource-display' && (
+
+                        <GameShell 
+
+                          screen={ResourceDisplay} 
+
+                          onExit={() => setCurrentScreen('menu')} 
+
+                        />
+
+                      )}
+
+                    </>
+
+                  )}
+
+                </div>
+
+          
   )
 }
 

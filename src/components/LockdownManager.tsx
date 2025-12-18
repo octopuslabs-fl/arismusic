@@ -15,8 +15,21 @@ export const LockdownManager = () => {
     const preventDefault = (e: Event) => e.preventDefault();
 
     const preventTouchMove = (e: TouchEvent) => {
-      // Prevent scrolling globally
-      e.preventDefault();
+      // Check if the target or any parent has the 'allow-scroll' class
+      let target = e.target as HTMLElement;
+      let shouldAllow = false;
+      
+      while (target && target !== document.body) {
+        if (target.classList && target.classList.contains('allow-scroll')) {
+          shouldAllow = true;
+          break;
+        }
+        target = target.parentElement as HTMLElement;
+      }
+
+      if (!shouldAllow) {
+        e.preventDefault();
+      }
     };
 
     const preventTouchStart = (e: TouchEvent) => {
