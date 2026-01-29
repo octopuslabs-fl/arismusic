@@ -29,6 +29,14 @@ A showcase of animated assets.
 *   **Content:** Cycles through a curated list of Lottie animations (animals, vehicles).
 *   **Interaction:** Tapping plays associated sounds (e.g., "Woof!", Car Horn) and particle effects.
 
+### 4. Messy Canvas 🎨
+A creative musical painting experience.
+*   **Visual:** Touch creates shapes (circles, stars, splashes, hearts) that morph colors and pulse.
+*   **Audio:** Y-position controls pitch (pentatonic scales), X-position controls mood (left=minor, right=major).
+*   **Trails:** Dragging leaves colorful paint trails with sparkle effects.
+*   **Ambient:** When you stop touching, the last notes fade into a soft ambient drone.
+*   **Filter:** All audio passes through a low-pass filter (2.5kHz) for warm, ear-safe sound.
+
 ## Tech Stack
 
 *   **Core:** [React 18](https://react.dev/) + [Vite](https://vitejs.dev/) + [TypeScript](https://www.typescriptlang.org/)

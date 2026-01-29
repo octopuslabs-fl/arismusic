@@ -1,5 +1,38 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { GameScreenProps } from '../types';
+import { audio } from '../audio/AudioEngine';
+
+// Musical scales - frequencies in Hz
+// Two octaves of each scale for more range
+const SCALES = {
+  majorPentatonic: [
+    261.63, // C4
+    293.66, // D4
+    329.63, // E4
+    392.00, // G4
+    440.00, // A4
+    523.25, // C5
+    587.33, // D5
+    659.25, // E5
+    783.99, // G5
+    880.00, // A5
+  ],
+  minorPentatonic: [
+    261.63, // C4
+    311.13, // Eb4
+    349.23, // F4
+    392.00, // G4
+    466.16, // Bb4
+    523.25, // C5
+    622.25, // Eb5
+    698.46, // F5
+    783.99, // G5
+    932.33, // Bb5
+  ],
+};
+
+// Oscillator types for variety
+const WAVE_TYPES: OscillatorType[] = ['sine', 'triangle', 'square', 'sawtooth'];
 
 interface Blob {
   id: number;
@@ -50,6 +83,103 @@ export const MessyCanvas: React.FC<GameScreenProps> = ({ touches, burst }) => {
   const idCounterRef = useRef(0);
   const lastTouchRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const backgroundHueRef = useRef(0);
+  
+  // Music state
+  const lastNoteTimeRef = useRef<Map<number, number>>(new Map());
+  const currentWaveTypeRef = useRef<OscillatorType>('sine');
+  const noteIntervalMs = 80; // Minimum time between notes per finger
+  
+  // Ambient/sustain state
+  const recentNotesRef = useRef<number[]>([]); // Last N frequencies played
+  const maxRecentNotes = 4; // Keep track of last 4 unique notes for ambient
+  const ambientActiveRef = useRef(false);
+  const hadTouchesRef = useRef(false);
+
+  // Play a note based on screen position
+  const playNoteAtPosition = useCallback((x: number, y: number, touchId: number) => {
+    const now = Date.now();
+    const lastTime = lastNoteTimeRef.current.get(touchId) || 0;
+    
+    // Rate limit notes
+    if (now - lastTime < noteIntervalMs) return;
+    lastNoteTimeRef.current.set(touchId, now);
+    
+    // Get screen dimensions
+    const height = window.innerHeight;
+    const width = window.innerWidth;
+    
+    // Y position determines pitch (inverted: top = high, bottom = low)
+    const normalizedY = 1 - (y / height);
+    
+    // X position determines scale (left = minor, right = major)
+    const normalizedX = x / width;
+    const scale = normalizedX > 0.5 ? SCALES.majorPentatonic : SCALES.minorPentatonic;
+    
+    // Map Y to scale index
+    const noteIndex = Math.floor(normalizedY * scale.length);
+    const clampedIndex = Math.max(0, Math.min(scale.length - 1, noteIndex));
+    let frequency = scale[clampedIndex];
+    
+    // Occasionally jump an octave for variety (10% chance)
+    if (Math.random() < 0.1) {
+      frequency *= Math.random() > 0.5 ? 2 : 0.5;
+    }
+    
+    // Slight random detune for organic feel (±10 cents)
+    frequency *= Math.pow(2, (Math.random() - 0.5) * 0.02);
+    
+    // Change wave type occasionally (5% chance)
+    if (Math.random() < 0.05) {
+      currentWaveTypeRef.current = WAVE_TYPES[Math.floor(Math.random() * WAVE_TYPES.length)];
+    }
+    
+    // Play the note with longer sustain for a warmer sound
+    audio.playTone(frequency, currentWaveTypeRef.current, 0.35 + Math.random() * 0.2);
+    
+    // Track this note for ambient sustain (use base frequency, not detuned)
+    const baseFreq = scale[clampedIndex];
+    if (!recentNotesRef.current.includes(baseFreq)) {
+      recentNotesRef.current.push(baseFreq);
+      // Keep only the last N notes
+      if (recentNotesRef.current.length > maxRecentNotes) {
+        recentNotesRef.current.shift();
+      }
+    }
+  }, []);
+
+  // Start ambient sustain from recent notes
+  const startAmbient = useCallback(() => {
+    if (ambientActiveRef.current) return;
+    if (recentNotesRef.current.length === 0) return;
+    
+    ambientActiveRef.current = true;
+    
+    // Create ambient tones from recent notes (lower octave, quiet)
+    recentNotesRef.current.forEach((freq, i) => {
+      // Stagger the start slightly, use lower octave
+      setTimeout(() => {
+        // Lower by an octave and vary the volume slightly
+        audio.createAmbientTone(freq * 0.5, 'sine', 0.04 + Math.random() * 0.02);
+      }, i * 200);
+    });
+  }, []);
+
+  // Stop ambient sustain
+  const stopAmbient = useCallback(() => {
+    if (!ambientActiveRef.current) return;
+    ambientActiveRef.current = false;
+    audio.fadeOutAllAmbient(1.5);
+  }, []);
+
+  // Cleanup on unmount - stop all ambient sounds immediately
+  useEffect(() => {
+    return () => {
+      // Kill all ambient immediately on unmount
+      audio.stopAllAmbient();
+      ambientActiveRef.current = false;
+      recentNotesRef.current = [];
+    };
+  }, []);
 
   // Create a new blob at touch point
   const createBlob = useCallback((x: number, y: number) => {
@@ -118,14 +248,33 @@ export const MessyCanvas: React.FC<GameScreenProps> = ({ touches, burst }) => {
   // Handle touches
   useEffect(() => {
     const currentTouches = new Set<number>();
+    const hasTouches = touches.length > 0;
+    
+    // Detect transition from no touches to having touches (fade out ambient)
+    if (hasTouches && !hadTouchesRef.current) {
+      stopAmbient();
+    }
+    
+    // Detect transition from having touches to no touches (start ambient)
+    if (!hasTouches && hadTouchesRef.current) {
+      // Small delay before starting ambient
+      setTimeout(() => {
+        if (lastTouchRef.current.size === 0) {
+          startAmbient();
+        }
+      }, 300);
+    }
+    
+    hadTouchesRef.current = hasTouches;
     
     touches.forEach(touch => {
       currentTouches.add(touch.id);
       const lastPos = lastTouchRef.current.get(touch.id);
       
       if (!lastPos) {
-        // New touch - create blob
+        // New touch - create blob and play note
         createBlob(touch.x, touch.y);
+        playNoteAtPosition(touch.x, touch.y, touch.id);
       } else {
         // Existing touch - create trail
         const dx = touch.x - lastPos.x;
@@ -135,6 +284,9 @@ export const MessyCanvas: React.FC<GameScreenProps> = ({ touches, burst }) => {
         if (dist > 5) {
           const hue = (backgroundHueRef.current + Math.random() * 60) % 360;
           addTrail(touch.x, touch.y, hue);
+          
+          // Play note while dragging
+          playNoteAtPosition(touch.x, touch.y, touch.id);
           
           // Spawn mini sparkles while dragging
           if (Math.random() > 0.5) {
@@ -160,9 +312,10 @@ export const MessyCanvas: React.FC<GameScreenProps> = ({ touches, burst }) => {
     lastTouchRef.current.forEach((_, id) => {
       if (!currentTouches.has(id)) {
         lastTouchRef.current.delete(id);
+        lastNoteTimeRef.current.delete(id); // Clean up note timing too
       }
     });
-  }, [touches, createBlob, addTrail]);
+  }, [touches, createBlob, addTrail, playNoteAtPosition, startAmbient, stopAmbient]);
 
   // Draw star shape
   const drawStar = (

@@ -18,6 +18,11 @@ export const GameShell: React.FC<GameShellProps> = ({ screen: Screen, onExit }) 
   // Ensure audio is active whenever we enter a game screen
   useEffect(() => {
     audio.resume();
+    
+    // Cleanup on unmount - stop any lingering ambient sounds
+    return () => {
+      audio.stopAllAmbient();
+    };
   }, []);
 
   const handleBurst = (x: number, y: number, color: string) => {

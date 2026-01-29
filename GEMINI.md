@@ -22,40 +22,35 @@ Build an educational music PWA for Aris (1 year old) to recognize notes, tones, 
     *   **Audio Engine:** Use `Web Audio API` directly for lowest latency. Avoid heavy audio libraries unless necessary.
     *   **State Management:** React for UI state, but use `useRef` or direct DOM/Canvas access for high-frequency animation loops if needed to avoid React render cycle lag.
 
-## Current Progress (Dec 6, 2025)
+## Current Progress (Jan 29, 2026)
 
 ### Features Implemented
 -   **Architecture:** React + Vite PWA with TypeScript.
--   **Audio:** Custom `AudioEngine` using native Web Audio API. Supports Sine/Triangle/Sawtooth waves and polyphony.
+-   **Audio:** Custom `AudioEngine` using native Web Audio API. Supports Sine/Triangle/Sawtooth/Square waves, polyphony, and ambient sustained tones. Global low-pass filter (2.5kHz) for ear-safe sound.
 -   **Interaction:**
     -   `useMultiTouch` hook supporting 10+ simultaneous touch points.
     -   `LockdownManager` preventing standard browser gestures (scroll/zoom).
     -   Touch Priority logic to prevent double-firing from mouse emulation on touch devices.
 -   **Games:**
     1.  **Free Play:** 8-note colorful piano.
-    2.  **Listen & Find:** A matching game where toddlers match a sound/note to a shape/color. (Shapes fixed, text removed, happy/sad feedback implemented).
+    2.  **Listen & Find:** A matching game where toddlers match a sound/note to a shape/color.
+    3.  **Resource Display:** Lottie animations with sounds.
+    4.  **Messy Canvas:** Creative musical painting with pentatonic scales, shapes, trails, and ambient sustain.
 -   **Visuals:** Custom HTML5 Canvas Particle System (`ParticleCanvas`) with "Multicolor Burst" for success moments.
+-   **Debug:** Triple-tap to toggle `AudioDebugOverlay` showing AudioContext state.
 
-### Known Issues
--   **iOS PWA Audio "Cold Start" Bug:**
-    -   **Symptoms:** On iPad (Add to Home Screen), closing the app and reopening it results in no audio. Tapping "Tap to Start" -> "Free Play" yields silence. However, navigating Back to Menu -> Free Play fixes it.
-    -   **Diagnosis Attempts:**
-        -   Implemented "Tap to Start" overlay to force user gesture.
-        -   Implemented HTML5 Audio Mute Switch Bypass.
-        -   Refactored `AudioEngine.unlock()` to destroy and recreate `AudioContext` on every "Unlock" attempt.
-        -   Added `await` to `MainMenu` navigation to prevent race conditions.
-    -   **Status:** Issue persists. The context creation seems successful, but the audio routing fails on the first deep navigation after a cold start.
+### iOS PWA Audio Status
+-   Refactored to singleton AudioContext pattern (create once, never close).
+-   Using suspend/resume instead of destroy/recreate.
+-   Handling `visibilitychange` and `pageshow` events for PWA lifecycle.
 
 ## Next Steps
 
-1.  **Debug iOS Audio:**
-    -   Investigate if retaining a *single* `AudioContext` (singleton) throughout the app lifecycle is better than destroying/recreating it.
-    -   Try creating the context *only* on the first "Tap to Start" and never closing it, just `resume()`ing it.
-    -   Add on-screen debug logs to see `AudioContext.state` during the failed flow.
-
-2.  **Refine Game Polish:**
-    -   Add more levels or difficulty scaling to "Listen & Find".
+1.  **Game Polish:**
+    -   Add difficulty scaling to "Listen & Find".
     -   Add a "Settings" area (protected by triple-tap) to adjust volume.
+    -   Parent guide for disabling iPad multitasking gestures / enabling Guided Access.
 
-3.  **New Modes:**
+2.  **New Modes:**
     -   "Chords Mode": Teaching 2-note combinations.
+    -   More instruments (sampled piano, xylophone).

@@ -10,9 +10,14 @@
 export class AudioEngine {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private lowPassFilter: BiquadFilterNode | null = null;
   private isUnlocked = false;
   private debugMode = false;
   private debugCallback: ((state: string) => void) | null = null;
+  
+  // Ambient/sustain system
+  private ambientOscillators: Map<number, { osc: OscillatorNode; gain: GainNode }> = new Map();
+  private ambientIdCounter = 0;
 
   constructor() {
     // Lazy initialization - context created on first unlock
@@ -55,11 +60,20 @@ export class AudioEngine {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     this.context = new AudioContextClass();
     
+    // Create low-pass filter to remove harsh high frequencies
+    this.lowPassFilter = this.context.createBiquadFilter();
+    this.lowPassFilter.type = 'lowpass';
+    this.lowPassFilter.frequency.value = 2500; // Cut frequencies above 2.5kHz
+    this.lowPassFilter.Q.value = 0.7; // Gentle rolloff
+    
     this.masterGain = this.context.createGain();
     this.masterGain.gain.value = 0.5;
-    this.masterGain.connect(this.context.destination);
     
-    this.logDebug('init() - context created');
+    // Chain: sources -> masterGain -> lowPassFilter -> destination
+    this.masterGain.connect(this.lowPassFilter);
+    this.lowPassFilter.connect(this.context.destination);
+    
+    this.logDebug('init() - context created with low-pass filter at 2.5kHz');
   }
 
   /**
@@ -223,6 +237,100 @@ export class AudioEngine {
    */
   public isReady(): boolean {
     return this.context?.state === 'running';
+  }
+
+  /**
+   * Create a sustained ambient tone that fades in
+   * Returns an ID to control/fade the tone later
+   */
+  public createAmbientTone(frequency: number, type: OscillatorType = 'sine', volume: number = 0.1): number {
+    if (!this.context || !this.masterGain) this.init();
+    if (!this.context || !this.masterGain) return -1;
+
+    if (this.context.state === 'suspended') {
+      this.context.resume();
+    }
+
+    if (this.context.state !== 'running') return -1;
+
+    const id = this.ambientIdCounter++;
+    const osc = this.context.createOscillator();
+    const gain = this.context.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, this.context.currentTime);
+    
+    // Start silent and fade in quickly
+    gain.gain.setValueAtTime(0, this.context.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, this.context.currentTime + 0.1);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start();
+
+    this.ambientOscillators.set(id, { osc, gain });
+    this.logDebug(`createAmbientTone() - id: ${id}, freq: ${frequency.toFixed(1)}`);
+
+    return id;
+  }
+
+  /**
+   * Fade out and stop an ambient tone
+   */
+  public fadeOutAmbientTone(id: number, duration: number = 2): void {
+    const ambient = this.ambientOscillators.get(id);
+    if (!ambient || !this.context) return;
+
+    const { osc, gain } = ambient;
+    const now = this.context.currentTime;
+
+    // Fade out
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    // Stop and cleanup after fade
+    osc.stop(now + duration + 0.1);
+    setTimeout(() => {
+      osc.disconnect();
+      gain.disconnect();
+      this.ambientOscillators.delete(id);
+    }, (duration + 0.2) * 1000);
+
+    this.logDebug(`fadeOutAmbientTone() - id: ${id}`);
+  }
+
+  /**
+   * Fade out all ambient tones
+   */
+  public fadeOutAllAmbient(duration: number = 1.5): void {
+    this.ambientOscillators.forEach((_, id) => {
+      this.fadeOutAmbientTone(id, duration);
+    });
+  }
+
+  /**
+   * Immediately stop all ambient tones (no fade)
+   */
+  public stopAllAmbient(): void {
+    this.ambientOscillators.forEach(({ osc, gain }, id) => {
+      try {
+        osc.stop();
+        osc.disconnect();
+        gain.disconnect();
+      } catch (e) {
+        // Ignore - might already be stopped
+      }
+      this.ambientOscillators.delete(id);
+    });
+    this.logDebug('stopAllAmbient() - killed all ambient');
+  }
+
+  /**
+   * Get count of active ambient tones
+   */
+  public getAmbientCount(): number {
+    return this.ambientOscillators.size;
   }
 }
 
