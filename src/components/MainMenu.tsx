@@ -38,7 +38,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
           <span className="text-3xl font-bold">Listen & Find</span>
           <span className="text-white/70 mt-2">Match the sound!</span>
         </button>
-        {/* Coming Soon Button */}
+        {/* Resource Display Button */}
         <button
           onClick={() => handleStart('resource-display')}
           className="group relative flex flex-col items-center justify-center p-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl shadow-xl transform active:scale-95 transition-all"
@@ -46,6 +46,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
           <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🖼️</div>
           <span className="text-3xl font-bold">Resource Display</span>
           <span className="text-white/70 mt-2">See an image!</span>
+        </button>
+
+        {/* Messy Canvas Button */}
+        <button
+          onClick={() => handleStart('canvas')}
+          className="group relative flex flex-col items-center justify-center p-8 bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500 rounded-3xl shadow-xl transform active:scale-95 transition-all animate-pulse"
+        >
+          <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🎨</div>
+          <span className="text-3xl font-bold">Messy Canvas</span>
+          <span className="text-white/70 mt-2">Paint everything!</span>
         </button>
       </div>
     </div>

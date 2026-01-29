@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { DotLottiePlayer } from '@dotlottie/react-player';
 import { GameScreenProps } from '../types';
 import { audio } from '../audio/AudioEngine';
@@ -26,7 +26,7 @@ const SOUND_MAP: Record<string, string | string[]> = {
   // Default fallback?
 };
 
-export const ResourceDisplay: React.FC<GameScreenProps> = ({ touches, burst }) => {
+export const ResourceDisplay: React.FC<GameScreenProps> = ({ burst }) => {
   const playSound = (fileName: string) => {
     const soundEntry = SOUND_MAP[fileName];
     if (soundEntry) {

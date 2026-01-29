@@ -3,6 +3,7 @@ import { LockdownManager } from './components/LockdownManager';
 import { FreePlay } from './components/FreePlay';
 import { ListenAndFind } from './components/ListenAndFind';
 import { ResourceDisplay } from './components/ResourceDisplay';
+import { MessyCanvas } from './components/MessyCanvas';
 import { GameShell } from './components/GameShell';
 import { MainMenu } from './components/MainMenu';
 import { AudioDebugOverlay } from './components/AudioDebugOverlay';
@@ -133,6 +134,13 @@ function App() {
           {currentScreen === 'resource-display' && (
             <GameShell 
               screen={ResourceDisplay} 
+              onExit={() => setCurrentScreen('menu')} 
+            />
+          )}
+
+          {currentScreen === 'canvas' && (
+            <GameShell 
+              screen={MessyCanvas} 
               onExit={() => setCurrentScreen('menu')} 
             />
           )}

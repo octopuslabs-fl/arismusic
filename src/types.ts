@@ -1,6 +1,6 @@
 import { TouchPoint } from './hooks/useMultiTouch';
 
-export type ScreenId = 'menu' | 'freeplay' | 'quiz' | 'resource-display';
+export type ScreenId = 'menu' | 'freeplay' | 'quiz' | 'resource-display' | 'canvas';
 
 export interface GameScreenProps {
   /** Current active touches on the screen */
